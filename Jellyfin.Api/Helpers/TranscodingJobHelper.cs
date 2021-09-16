@@ -607,6 +607,10 @@ namespace Jellyfin.Api.Helpers
             {
                 StartThrottler(state, transcodingJob);
             }
+            else if (transcodingJob.ExitCode != 0)
+            {
+                throw new Exception(string.Format(CultureInfo.InvariantCulture, "FFmpeg exited with code {0}", transcodingJob.ExitCode));
+            }
 
             _logger.LogDebug("StartFfMpeg() finished successfully");
 
@@ -743,6 +747,7 @@ namespace Jellyfin.Api.Helpers
         private void OnFfMpegProcessExited(Process process, TranscodingJobDto job, StreamState state)
         {
             job.HasExited = true;
+            job.ExitCode = process.ExitCode;
 
             _logger.LogDebug("Disposing stream resources");
             state.Dispose();
