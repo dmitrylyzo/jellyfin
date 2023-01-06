@@ -193,9 +193,10 @@ namespace Jellyfin.Api.Helpers
             if (state.VideoRequest != null)
             {
                 state.OutputVideoCodec = state.Request.VideoCodec;
-                state.OutputVideoBitrate = encodingHelper.GetVideoBitrateParamValue(state.VideoRequest, state.VideoStream, state.OutputVideoCodec);
 
                 encodingHelper.TryStreamCopy(state);
+
+                state.OutputVideoBitrate = encodingHelper.GetVideoBitrateParamValue(state.VideoRequest, state.VideoStream, state.OutputVideoCodec);
 
                 if (!EncodingHelper.IsCopyCodec(state.OutputVideoCodec) && state.OutputVideoBitrate.HasValue)
                 {

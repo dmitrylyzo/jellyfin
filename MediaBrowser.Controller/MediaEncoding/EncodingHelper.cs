@@ -1958,6 +1958,11 @@ namespace MediaBrowser.Controller.MediaEncoding
 
             if (videoStream != null)
             {
+                if (IsCopyCodec(outputVideoCodec) && videoStream.BitRate.HasValue)
+                {
+                    return videoStream.BitRate.Value;
+                }
+
                 var isUpscaling = request.Height.HasValue
                     && videoStream.Height.HasValue
                     && request.Height.Value > videoStream.Height.Value
