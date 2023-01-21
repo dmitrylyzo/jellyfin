@@ -9,6 +9,7 @@ using Jellyfin.Api.Constants;
 using Jellyfin.Api.Helpers;
 using Jellyfin.Api.ModelBinders;
 using Jellyfin.Api.Models.StreamingDtos;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Devices;
 using MediaBrowser.Controller.Library;
@@ -37,6 +38,7 @@ namespace Jellyfin.Api.Controllers
         private readonly MediaInfoHelper _mediaInfoHelper;
         private readonly AudioHelper _audioHelper;
         private readonly DynamicHlsHelper _dynamicHlsHelper;
+        private readonly IUserManager _userManager;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UniversalAudioController"/> class.
@@ -48,6 +50,7 @@ namespace Jellyfin.Api.Controllers
         /// <param name="mediaInfoHelper">Instance of <see cref="MediaInfoHelper"/>.</param>
         /// <param name="audioHelper">Instance of <see cref="AudioHelper"/>.</param>
         /// <param name="dynamicHlsHelper">Instance of <see cref="DynamicHlsHelper"/>.</param>
+        /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
         public UniversalAudioController(
             IAuthorizationContext authorizationContext,
             IDeviceManager deviceManager,
@@ -55,7 +58,8 @@ namespace Jellyfin.Api.Controllers
             ILogger<UniversalAudioController> logger,
             MediaInfoHelper mediaInfoHelper,
             AudioHelper audioHelper,
-            DynamicHlsHelper dynamicHlsHelper)
+            DynamicHlsHelper dynamicHlsHelper,
+            IUserManager userManager)
         {
             _authorizationContext = authorizationContext;
             _deviceManager = deviceManager;
@@ -64,6 +68,7 @@ namespace Jellyfin.Api.Controllers
             _mediaInfoHelper = mediaInfoHelper;
             _audioHelper = audioHelper;
             _dynamicHlsHelper = dynamicHlsHelper;
+            _userManager = userManager;
         }
 
         /// <summary>
@@ -144,6 +149,18 @@ namespace Jellyfin.Api.Controllers
                     mediaSourceId)
                 .ConfigureAwait(false);
 
+            var user = _userManager.GetUserById(userId ?? Guid.Empty);
+
+            // If the user doesn't have access to transcoding, then ignore the bitrate limit
+            if (!user.HasPermission(PermissionKind.EnableAudioPlaybackTranscoding))
+            {
+                maxStreamingBitrate = null;
+            }
+            else
+            {
+                maxStreamingBitrate = _mediaInfoHelper.GetMaxBitrate(maxStreamingBitrate, user, Request.HttpContext.GetNormalizedRemoteIp());
+            }
+
             if (deviceProfile != null)
             {
                 // set device specific data
@@ -168,8 +185,7 @@ namespace Jellyfin.Api.Controllers
                         true,
                         true,
                         true,
-                        true,
-                        Request.HttpContext.GetNormalizedRemoteIp());
+                        true);
                 }
 
                 _mediaInfoHelper.SortMediaSources(info, maxStreamingBitrate);

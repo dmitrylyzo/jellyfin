@@ -161,7 +161,6 @@ namespace Jellyfin.Api.Helpers
         /// <param name="enableTranscoding">Enable transcoding.</param>
         /// <param name="allowVideoStreamCopy">Allow video stream copy.</param>
         /// <param name="allowAudioStreamCopy">Allow audio stream copy.</param>
-        /// <param name="ipAddress">Requesting IP address.</param>
         public void SetDeviceSpecificData(
             BaseItem item,
             MediaSourceInfo mediaSource,
@@ -179,8 +178,7 @@ namespace Jellyfin.Api.Helpers
             bool enableDirectStream,
             bool enableTranscoding,
             bool allowVideoStreamCopy,
-            bool allowAudioStreamCopy,
-            IPAddress ipAddress)
+            bool allowAudioStreamCopy)
         {
             var streamBuilder = new StreamBuilder(_mediaEncoder, _logger);
 
@@ -237,7 +235,7 @@ namespace Jellyfin.Api.Helpers
                     user.HasPermission(PermissionKind.EnableAudioPlaybackTranscoding));
             }
 
-            options.MaxBitrate = GetMaxBitrate(maxBitrate, user, ipAddress);
+            options.MaxBitrate = maxBitrate;
 
             if (!options.ForceDirectStream)
             {
@@ -424,8 +422,7 @@ namespace Jellyfin.Api.Helpers
                     request.EnableDirectStream,
                     true,
                     true,
-                    true,
-                    httpRequest.HttpContext.GetNormalizedRemoteIp());
+                    true);
             }
             else
             {
@@ -477,7 +474,14 @@ namespace Jellyfin.Api.Helpers
             }
         }
 
-        private int? GetMaxBitrate(int? clientMaxBitrate, User user, IPAddress ipAddress)
+        /// <summary>
+        /// Get max bitrate.
+        /// </summary>
+        /// <param name="clientMaxBitrate">Client max bitrate.</param>
+        /// <param name="user">User.</param>
+        /// <param name="ipAddress">Requesting IP address.</param>
+        /// <returns>Max bitrate.</returns>
+        public int? GetMaxBitrate(int? clientMaxBitrate, User user, IPAddress ipAddress)
         {
             var maxBitrate = clientMaxBitrate;
             var remoteClientMaxBitrate = user.RemoteClientBitrateLimit ?? 0;

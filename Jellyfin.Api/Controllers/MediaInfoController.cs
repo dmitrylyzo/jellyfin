@@ -8,8 +8,11 @@ using Jellyfin.Api.Attributes;
 using Jellyfin.Api.Constants;
 using Jellyfin.Api.Helpers;
 using Jellyfin.Api.Models.MediaInfoDtos;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Devices;
+using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Dlna;
@@ -35,6 +38,7 @@ namespace Jellyfin.Api.Controllers
         private readonly IAuthorizationContext _authContext;
         private readonly ILogger<MediaInfoController> _logger;
         private readonly MediaInfoHelper _mediaInfoHelper;
+        private readonly IUserManager _userManager;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MediaInfoController"/> class.
@@ -45,13 +49,15 @@ namespace Jellyfin.Api.Controllers
         /// <param name="authContext">Instance of the <see cref="IAuthorizationContext"/> interface.</param>
         /// <param name="logger">Instance of the <see cref="ILogger{MediaInfoController}"/> interface.</param>
         /// <param name="mediaInfoHelper">Instance of the <see cref="MediaInfoHelper"/>.</param>
+        /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
         public MediaInfoController(
             IMediaSourceManager mediaSourceManager,
             IDeviceManager deviceManager,
             ILibraryManager libraryManager,
             IAuthorizationContext authContext,
             ILogger<MediaInfoController> logger,
-            MediaInfoHelper mediaInfoHelper)
+            MediaInfoHelper mediaInfoHelper,
+            IUserManager userManager)
         {
             _mediaSourceManager = mediaSourceManager;
             _deviceManager = deviceManager;
@@ -59,6 +65,7 @@ namespace Jellyfin.Api.Controllers
             _authContext = authContext;
             _logger = logger;
             _mediaInfoHelper = mediaInfoHelper;
+            _userManager = userManager;
         }
 
         /// <summary>
@@ -166,10 +173,23 @@ namespace Jellyfin.Api.Controllers
                 return info;
             }
 
+            var user = _userManager.GetUserById(userId ?? Guid.Empty);
+            var item = _libraryManager.GetItemById(itemId);
+
+            // If the user doesn't have access to transcoding, then ignore the bitrate limit
+            if ((item is Video && !user.HasPermission(PermissionKind.EnableVideoPlaybackTranscoding))
+                || (item is Audio && !user.HasPermission(PermissionKind.EnableAudioPlaybackTranscoding)))
+            {
+                maxStreamingBitrate = null;
+            }
+            else
+            {
+                maxStreamingBitrate = _mediaInfoHelper.GetMaxBitrate(maxStreamingBitrate, user, Request.HttpContext.GetNormalizedRemoteIp());
+            }
+
             if (profile != null)
             {
                 // set device specific data
-                var item = _libraryManager.GetItemById(itemId);
 
                 foreach (var mediaSource in info.MediaSources)
                 {
@@ -190,8 +210,7 @@ namespace Jellyfin.Api.Controllers
                         enableDirectStream.Value,
                         enableTranscoding.Value,
                         allowVideoStreamCopy.Value,
-                        allowAudioStreamCopy.Value,
-                        Request.HttpContext.GetNormalizedRemoteIp());
+                        allowAudioStreamCopy.Value);
                 }
 
                 _mediaInfoHelper.SortMediaSources(info, maxStreamingBitrate);
@@ -277,6 +296,21 @@ namespace Jellyfin.Api.Controllers
                 EnableDirectStream = enableDirectStream ?? openLiveStreamDto?.EnableDirectStream ?? true,
                 DirectPlayProtocols = openLiveStreamDto?.DirectPlayProtocols ?? new[] { MediaProtocol.Http }
             };
+
+            var user = _userManager.GetUserById(request.UserId);
+            var item = _libraryManager.GetItemById(request.ItemId);
+
+            // If the user doesn't have access to transcoding, then ignore the bitrate limit
+            if ((item is Video && !user.HasPermission(PermissionKind.EnableVideoPlaybackTranscoding))
+                || (item is Audio && !user.HasPermission(PermissionKind.EnableAudioPlaybackTranscoding)))
+            {
+                request.MaxStreamingBitrate = null;
+            }
+            else
+            {
+                request.MaxStreamingBitrate = _mediaInfoHelper.GetMaxBitrate(request.MaxStreamingBitrate, user, Request.HttpContext.GetNormalizedRemoteIp());
+            }
+
             return await _mediaInfoHelper.OpenMediaSource(Request, request).ConfigureAwait(false);
         }
 
