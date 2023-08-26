@@ -166,6 +166,34 @@ namespace Jellyfin.Api.Controllers
                 return info;
             }
 
+            if (autoOpenLiveStream.Value)
+            {
+                var mediaSource = string.IsNullOrWhiteSpace(mediaSourceId) ? info.MediaSources[0] : info.MediaSources.FirstOrDefault(i => string.Equals(i.Id, mediaSourceId, StringComparison.Ordinal));
+
+                if (mediaSource != null && mediaSource.RequiresOpening && string.IsNullOrWhiteSpace(mediaSource.LiveStreamId))
+                {
+                    var openStreamResult = await _mediaInfoHelper.OpenMediaSource(
+                        Request,
+                        new LiveStreamRequest
+                        {
+                            AudioStreamIndex = audioStreamIndex,
+                            DeviceProfile = playbackInfoDto?.DeviceProfile,
+                            EnableDirectPlay = enableDirectPlay.Value,
+                            EnableDirectStream = enableDirectStream.Value,
+                            ItemId = itemId,
+                            MaxAudioChannels = maxAudioChannels,
+                            MaxStreamingBitrate = maxStreamingBitrate,
+                            PlaySessionId = info.PlaySessionId,
+                            StartTimeTicks = startTimeTicks,
+                            SubtitleStreamIndex = subtitleStreamIndex,
+                            UserId = userId ?? Guid.Empty,
+                            OpenToken = mediaSource.OpenToken
+                        }).ConfigureAwait(false);
+
+                    info.MediaSources = new[] { openStreamResult.MediaSource };
+                }
+            }
+
             if (profile != null)
             {
                 // set device specific data
@@ -195,34 +223,6 @@ namespace Jellyfin.Api.Controllers
                 }
 
                 _mediaInfoHelper.SortMediaSources(info, maxStreamingBitrate);
-            }
-
-            if (autoOpenLiveStream.Value)
-            {
-                var mediaSource = string.IsNullOrWhiteSpace(mediaSourceId) ? info.MediaSources[0] : info.MediaSources.FirstOrDefault(i => string.Equals(i.Id, mediaSourceId, StringComparison.Ordinal));
-
-                if (mediaSource != null && mediaSource.RequiresOpening && string.IsNullOrWhiteSpace(mediaSource.LiveStreamId))
-                {
-                    var openStreamResult = await _mediaInfoHelper.OpenMediaSource(
-                        Request,
-                        new LiveStreamRequest
-                        {
-                            AudioStreamIndex = audioStreamIndex,
-                            DeviceProfile = playbackInfoDto?.DeviceProfile,
-                            EnableDirectPlay = enableDirectPlay.Value,
-                            EnableDirectStream = enableDirectStream.Value,
-                            ItemId = itemId,
-                            MaxAudioChannels = maxAudioChannels,
-                            MaxStreamingBitrate = maxStreamingBitrate,
-                            PlaySessionId = info.PlaySessionId,
-                            StartTimeTicks = startTimeTicks,
-                            SubtitleStreamIndex = subtitleStreamIndex,
-                            UserId = userId ?? Guid.Empty,
-                            OpenToken = mediaSource.OpenToken
-                        }).ConfigureAwait(false);
-
-                    info.MediaSources = new[] { openStreamResult.MediaSource };
-                }
             }
 
             return info;
