@@ -362,6 +362,50 @@ namespace Jellyfin.Model.Tests
             Assert.Equal(streamInfo?.SubtitleStreamIndex, options.SubtitleStreamIndex);
         }
 
+        [Theory]
+        // Chrome
+        [InlineData("Chrome", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioCodecNotSupported, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
+        [InlineData("Chrome", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioCodecNotSupported, 0 })]
+        [InlineData("Chrome", "mkv-vp9-aac-srt-2600k", new TranscodeReason[] { TranscodeReason.ContainerNotSupported, TranscodeReason.ContainerNotSupported, 0 })]
+        [InlineData("Chrome", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioCodecNotSupported })]
+        [InlineData("Chrome", "mkv-dvhe.05-eac3-28000k", new TranscodeReason[] { TranscodeReason.ContainerNotSupported | TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.ContainerNotSupported | TranscodeReason.AudioCodecNotSupported })]
+        // Firefox
+        [InlineData("Firefox", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioCodecNotSupported, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
+        [InlineData("Firefox", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioCodecNotSupported, 0 })]
+        [InlineData("Firefox", "mkv-vp9-aac-srt-2600k", new TranscodeReason[] { TranscodeReason.ContainerNotSupported, TranscodeReason.ContainerNotSupported, 0 })]
+        [InlineData("Firefox", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoCodecNotSupported, TranscodeReason.AudioCodecNotSupported })]
+        [InlineData("Firefox", "mkv-dvhe.05-eac3-28000k", new TranscodeReason[] { TranscodeReason.ContainerNotSupported | TranscodeReason.VideoCodecNotSupported, TranscodeReason.ContainerNotSupported | TranscodeReason.AudioCodecNotSupported })]
+        // Tizen3-stereo
+        [InlineData("Tizen3-stereo", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, 0, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
+        [InlineData("Tizen3-stereo", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, 0, 0 })]
+        [InlineData("Tizen3-stereo", "mkv-vp9-aac-srt-2600k", new TranscodeReason[] { 0, 0, 0 })]
+        [InlineData("Tizen3-stereo", "mkv-av1-aac-srt-2600k", new TranscodeReason[] { TranscodeReason.VideoCodecNotSupported, 0, 0 })]
+        [InlineData("Tizen3-stereo", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioChannelsNotSupported })]
+        [InlineData("Tizen3-stereo", "mkv-dvhe.05-eac3-28000k", new TranscodeReason[] { TranscodeReason.VideoBitrateNotSupported | TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioChannelsNotSupported })]
+        [InlineData("Tizen3-stereo", "mkv-dvhe.08-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioChannelsNotSupported })]
+        [InlineData("Tizen3-stereo", "mp4-dvhe.08-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioChannelsNotSupported })]
+        // Tizen4-4K-5.1
+        [InlineData("Tizen4-4K-5.1", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, 0, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
+        [InlineData("Tizen4-4K-5.1", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioCodecNotSupported, 0 })]
+        [InlineData("Tizen4-4K-5.1", "mkv-vp9-aac-srt-2600k", new TranscodeReason[] { 0, 0, 0 })]
+        [InlineData("Tizen4-4K-5.1", "mkv-av1-aac-srt-2600k", new TranscodeReason[] { TranscodeReason.VideoCodecNotSupported, 0, 0 })]
+        [InlineData("Tizen4-4K-5.1", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, 0 })]
+        public async Task CheckCompatibility(string deviceName, string mediaSourceName, TranscodeReason[] directPlayErrors)
+        {
+            var options = await GetMediaOptions(deviceName, mediaSourceName);
+
+            var builder = GetStreamBuilder();
+
+            var streamInfo = builder.GetOptimalVideoStream(options);
+            Assert.NotNull(streamInfo);
+
+            var mediaSource = options.MediaSources.First(source => source.Id == streamInfo.MediaSourceId);
+            Assert.NotNull(mediaSource);
+
+            Assert.Equal(directPlayErrors.Length, mediaSource.MediaStreams.Count);
+            Assert.All(mediaSource.MediaStreams, (stream, i) => Assert.Equal(directPlayErrors[i], stream.DirectPlayErrors));
+        }
+
         private StreamInfo? BuildVideoItemSimpleTest(MediaOptions options, PlayMethod? playMethod, TranscodeReason why, string transcodeMode, string transcodeProtocol)
         {
             if (string.IsNullOrEmpty(transcodeProtocol))
