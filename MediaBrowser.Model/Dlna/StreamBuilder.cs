@@ -1207,7 +1207,7 @@ namespace MediaBrowser.Model.Dlna
                     return index;
                 };
 
-            var containerSupported = false;
+            var videoSupported = false;
 
             // Check DirectPlay profiles to see if it can be direct played
             var analyzedProfiles = profile.DirectPlayProfiles
@@ -1222,16 +1222,16 @@ namespace MediaBrowser.Model.Dlna
                     {
                         directPlayProfileReasons |= TranscodeReason.ContainerNotSupported;
                     }
-                    else
-                    {
-                        containerSupported = true;
-                    }
 
                     // Check video codec
                     string? videoCodec = videoStream?.Codec;
                     if (!directPlayProfile.SupportsVideoCodec(videoCodec))
                     {
                         directPlayProfileReasons |= TranscodeReason.VideoCodecNotSupported;
+                    }
+                    else
+                    {
+                        videoSupported = true;
                     }
 
                     // Check audio codec
@@ -1290,10 +1290,28 @@ namespace MediaBrowser.Model.Dlna
                 return profileMatch;
             }
 
-            var failureReasons = analyzedProfiles[false]
-                .Select(analysis => analysis.Result)
-                .Where(result => !containerSupported || (result.TranscodeReason & TranscodeReason.ContainerNotSupported) == 0)
-                .FirstOrDefault().TranscodeReason;
+            var failureResults = analyzedProfiles[false]
+                .Select(analysis => analysis.Result);
+
+            if (videoSupported)
+            {
+                // Drop results with unsupported video
+                failureResults = failureResults.Where(result => (result.TranscodeReason & TranscodeReason.VideoCodecNotSupported) == 0);
+            }
+
+            if (failureResults.Any(result => (result.TranscodeReason & TranscodeReason.AudioCodecNotSupported) == 0))
+            {
+                // Drop results with unsupported audio
+                failureResults = failureResults.Where(result => (result.TranscodeReason & TranscodeReason.AudioCodecNotSupported) == 0);
+            }
+
+            if (failureResults.Any(result => (result.TranscodeReason & TranscodeReason.ContainerNotSupported) == 0))
+            {
+                // Drop results with unsupported container
+                failureResults = failureResults.Where(result => (result.TranscodeReason & TranscodeReason.ContainerNotSupported) == 0);
+            }
+
+            var failureReasons = failureResults.FirstOrDefault().TranscodeReason;
             if (failureReasons == 0)
             {
                 failureReasons = TranscodeReason.DirectPlayError;
