@@ -25,6 +25,7 @@ namespace MediaBrowser.Model.Dlna
         internal const TranscodeReason VideoCodecReasons = TranscodeReason.VideoResolutionNotSupported | TranscodeReason.AnamorphicVideoNotSupported | TranscodeReason.InterlacedVideoNotSupported | TranscodeReason.VideoBitDepthNotSupported | TranscodeReason.VideoBitrateNotSupported | TranscodeReason.VideoFramerateNotSupported | TranscodeReason.VideoLevelNotSupported | TranscodeReason.RefFramesNotSupported | TranscodeReason.VideoRangeTypeNotSupported | TranscodeReason.VideoProfileNotSupported;
         internal const TranscodeReason VideoReasons = TranscodeReason.VideoCodecNotSupported | VideoCodecReasons;
         internal const TranscodeReason DirectStreamReasons = AudioReasons | TranscodeReason.ContainerNotSupported | TranscodeReason.VideoCodecTagNotSupported;
+        internal const TranscodeReason GenericReasons = TranscodeReason.VideoCodecNotSupported | TranscodeReason.AudioCodecNotSupported | TranscodeReason.ContainerNotSupported;
 
         private readonly ILogger _logger;
         private readonly ITranscoderSupport _transcoderSupport;
@@ -1544,32 +1545,18 @@ namespace MediaBrowser.Model.Dlna
                     .Where(containerProfile => containerProfile.Type == DlnaProfileType.Video && containerProfile.ContainsContainer(container))
                     .SelectMany(containerProfile => checkVideoConditions(containerProfile.Conditions)));
 
-            // Check video conditions
-            var videoCodecProfileReasons = AggregateFailureConditions(
-                mediaSource,
-                profile,
-                "VideoCodecProfile",
-                profile.CodecProfiles
-                    .Where(codecProfile => codecProfile.Type == CodecType.Video &&
-                        codecProfile.ContainsAnyCodec(videoStream?.Codec, container) &&
-                        !checkVideoConditions(codecProfile.ApplyConditions).Any())
-                    .SelectMany(codecProfile => checkVideoConditions(codecProfile.Conditions)));
+            // FIXME: Throw if DirectPlayErrors has no value?
+            var videoCodecProfileReasons = (videoStream?.DirectPlayErrors ?? 0) & ~GenericReasons;
 
-            // Check audio candidates profile conditions
-            var audioStreamMatches = candidateAudioStreams.ToDictionary(s => s, audioStream => CheckVideoAudioStreamDirectPlay(options, mediaSource, container, audioStream));
+            // FIXME: Throw if DirectPlayErrors has no value?
+            var audioStreamMatches = candidateAudioStreams.ToDictionary(s => s, audioStream => (audioStream.DirectPlayErrors ?? 0) & ~GenericReasons);
 
-            TranscodeReason subtitleProfileReasons = 0;
-            if (subtitleStream is not null)
+            // FIXME: Throw if DirectPlayErrors has no value?
+            var subtitleProfileReasons = (subtitleStream?.DirectPlayErrors ?? 0) & ~GenericReasons;
+
+            if ((subtitleProfileReasons & TranscodeReason.SubtitleCodecNotSupported) != 0)
             {
-                var subtitleProfile = GetSubtitleProfile(mediaSource, subtitleStream, options.Profile.SubtitleProfiles, PlayMethod.DirectPlay, _transcoderSupport, container, null);
-
-                if (subtitleProfile.Method != SubtitleDeliveryMethod.Drop
-                    && subtitleProfile.Method != SubtitleDeliveryMethod.External
-                    && subtitleProfile.Method != SubtitleDeliveryMethod.Embed)
-                {
-                    _logger.LogDebug("Not eligible for {0} due to unsupported subtitles", PlayMethod.DirectPlay);
-                    subtitleProfileReasons |= TranscodeReason.SubtitleCodecNotSupported;
-                }
+                _logger.LogDebug("Not eligible for {0} due to unsupported subtitles", PlayMethod.DirectPlay);
             }
 
             var containerSupported = false;
@@ -1667,20 +1654,6 @@ namespace MediaBrowser.Model.Dlna
             }
 
             return (Profile: null, PlayMethod: null, AudioStreamIndex: null, TranscodeReasons: failureReasons);
-        }
-
-        private TranscodeReason CheckVideoAudioStreamDirectPlay(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream audioStream)
-        {
-            var profile = options.Profile;
-            var audioFailureConditions = GetProfileConditionsForVideoAudio(profile.CodecProfiles, container, audioStream.Codec, audioStream.Channels, audioStream.BitRate, audioStream.SampleRate, audioStream.BitDepth, audioStream.Profile, mediaSource.IsSecondaryAudio(audioStream));
-
-            var audioStreamFailureReasons = AggregateFailureConditions(mediaSource, profile, "VideoAudioCodecProfile", audioFailureConditions);
-            if (audioStream.IsExternal == true)
-            {
-                audioStreamFailureReasons |= TranscodeReason.AudioIsExternal;
-            }
-
-            return audioStreamFailureReasons;
         }
 
         private TranscodeReason AggregateFailureConditions(MediaSourceInfo mediaSource, DeviceProfile profile, string type, IEnumerable<ProfileCondition> conditions)
