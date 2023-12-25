@@ -1384,7 +1384,9 @@ namespace MediaBrowser.Model.Dlna
                         continue;
                     }
 
-                    if (subtitleStream.IsTextSubtitleStream == MediaStream.IsTextFormat(profile.Format) && string.Equals(profile.Format, subtitleStream.Codec, StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(profile.Format)
+                        || (subtitleStream.IsTextSubtitleStream == MediaStream.IsTextFormat(profile.Format)
+                            && string.Equals(profile.Format, subtitleStream.Codec, StringComparison.OrdinalIgnoreCase)))
                     {
                         return profile;
                     }
@@ -1475,6 +1477,11 @@ namespace MediaBrowser.Model.Dlna
                 if (!subtitleStream.IsExternal && !transcoderSupport.CanExtractSubtitles(subtitleStream.Codec))
                 {
                     continue;
+                }
+
+                if (string.IsNullOrEmpty(profile.Format))
+                {
+                    return profile;
                 }
 
                 if ((profile.Method == SubtitleDeliveryMethod.External && subtitleStream.IsTextSubtitleStream == MediaStream.IsTextFormat(profile.Format)) ||
