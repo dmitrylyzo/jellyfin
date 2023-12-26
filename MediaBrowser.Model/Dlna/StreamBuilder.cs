@@ -578,11 +578,8 @@ namespace MediaBrowser.Model.Dlna
             item.TranscodingContainer = container;
             item.TranscodingSubProtocol = protocol;
 
-            if (playlistItem.PlayMethod == PlayMethod.Transcode)
-            {
-                playlistItem.Container = container;
-                playlistItem.SubProtocol = protocol;
-            }
+            playlistItem.Container = container;
+            playlistItem.SubProtocol = protocol;
 
             playlistItem.TranscodeSeekInfo = transcodingProfile.TranscodeSeekInfo;
             if (int.TryParse(transcodingProfile.MaxAudioChannels, CultureInfo.InvariantCulture, out int transcodingMaxAudioChannels))
