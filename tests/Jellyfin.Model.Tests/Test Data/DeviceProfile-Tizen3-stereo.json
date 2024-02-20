@@ -14,6 +14,7 @@
     "RequiresPlainFolders": false,
     "EnableMSMediaReceiverRegistrar": false,
     "IgnoreTranscodeByteRangeRequests": false,
+    "SingleAudioPolicy": "FirstSupported",
     "DirectPlayProfiles": [
         {
             "Container": "webm",
@@ -433,13 +434,6 @@
                     "Condition": "LessThanEqual",
                     "Property": "AudioChannels",
                     "Value": "2",
-                    "IsRequired": false,
-                    "$type": "ProfileCondition"
-                },
-                {
-                    "Condition": "Equals",
-                    "Property": "IsSecondaryAudio",
-                    "Value": "false",
                     "IsRequired": false,
                     "$type": "ProfileCondition"
                 }
