@@ -171,14 +171,14 @@ namespace Jellyfin.Model.Tests
         [InlineData("AndroidTVExoPlayer", "mkv-vp9-vorbis-vtt-2600k", PlayMethod.Transcode, TranscodeReason.AudioCodecNotSupported, "Transcode")] // Full transcode because profile only has ts which does not allow vp9
         // Tizen 3 Stereo
         [InlineData("Tizen3-stereo", "mp4-h264-aac-vtt-2600k", PlayMethod.DirectPlay)]
-        [InlineData("Tizen3-stereo", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.DirectPlay)]
-        [InlineData("Tizen3-stereo", "mp4-h264-ac3-srt-2600k", PlayMethod.DirectPlay)]
-        [InlineData("Tizen3-stereo", "mp4-h264-dts-srt-2600k", PlayMethod.DirectPlay)]
+        [InlineData("Tizen3-stereo", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream")]
+        [InlineData("Tizen3-stereo", "mp4-h264-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream")]
+        [InlineData("Tizen3-stereo", "mp4-h264-dts-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream")]
         [InlineData("Tizen3-stereo", "mp4-hevc-aac-srt-15200k", PlayMethod.DirectPlay)]
-        [InlineData("Tizen3-stereo", "mp4-hevc-ac3-aac-srt-15200k", PlayMethod.DirectPlay)]
+        [InlineData("Tizen3-stereo", "mp4-hevc-ac3-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream")]
         [InlineData("Tizen3-stereo", "mp4-hevc-truehd-srt-15200k", PlayMethod.Transcode, TranscodeReason.AudioCodecNotSupported)]
         [InlineData("Tizen3-stereo", "mkv-vp9-aac-srt-2600k", PlayMethod.DirectPlay)]
-        [InlineData("Tizen3-stereo", "mkv-vp9-ac3-srt-2600k", PlayMethod.DirectPlay)]
+        [InlineData("Tizen3-stereo", "mkv-vp9-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream")]
         [InlineData("Tizen3-stereo", "mkv-vp9-vorbis-vtt-2600k", PlayMethod.DirectPlay)]
         // Tizen 4 4K 5.1
         [InlineData("Tizen4-4K-5.1", "mp4-h264-aac-vtt-2600k", PlayMethod.DirectPlay)]
