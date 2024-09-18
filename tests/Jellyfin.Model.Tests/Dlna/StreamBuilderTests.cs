@@ -376,8 +376,8 @@ namespace Jellyfin.Model.Tests
         [InlineData("Firefox", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoCodecNotSupported, TranscodeReason.AudioCodecNotSupported })]
         [InlineData("Firefox", "mkv-dvhe.05-eac3-28000k", new TranscodeReason[] { TranscodeReason.ContainerNotSupported | TranscodeReason.VideoCodecNotSupported, TranscodeReason.ContainerNotSupported | TranscodeReason.AudioCodecNotSupported })]
         // Tizen3-stereo
-        [InlineData("Tizen3-stereo", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, 0, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
-        [InlineData("Tizen3-stereo", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, 0, 0 })]
+        [InlineData("Tizen3-stereo", "mp4-h264-ac3-aac-aac-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioChannelsNotSupported, TranscodeReason.SecondaryAudioNotSupported, TranscodeReason.SecondaryAudioNotSupported, 0 })]
+        [InlineData("Tizen3-stereo", "mp4-h264-dts-srt-2600k", new TranscodeReason[] { 0, TranscodeReason.AudioChannelsNotSupported, 0 })]
         [InlineData("Tizen3-stereo", "mkv-vp9-aac-srt-2600k", new TranscodeReason[] { 0, 0, 0 })]
         [InlineData("Tizen3-stereo", "mkv-av1-aac-srt-2600k", new TranscodeReason[] { TranscodeReason.VideoCodecNotSupported, 0, 0 })]
         [InlineData("Tizen3-stereo", "mp4-dvh1.05-eac3-15200k", new TranscodeReason[] { TranscodeReason.VideoRangeTypeNotSupported, TranscodeReason.AudioChannelsNotSupported })]
