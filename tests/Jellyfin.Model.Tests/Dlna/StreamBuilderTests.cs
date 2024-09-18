@@ -60,17 +60,17 @@ namespace Jellyfin.Model.Tests
         [InlineData("Firefox", "mp4-dvhe.08-eac3-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecNotSupported | TranscodeReason.AudioCodecNotSupported, "Transcode", "HLS.mp4")]
         // Safari
         [InlineData("SafariNext", "mp4-h264-aac-vtt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aacDef-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-srt-2600k", PlayMethod.DirectPlay)] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aacDef-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mkv-h264-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.ContainerNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported, "Remux", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-ac3-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-ac3-aacExt-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-h264-hi10p-aac-5000k", PlayMethod.Transcode, TranscodeReason.VideoProfileNotSupported, "Remux", "HLS.mp4")]
         [InlineData("SafariNext", "mkv-h264-hi10p-aac-5000k-brokenfps", PlayMethod.Transcode, TranscodeReason.ContainerNotSupported | TranscodeReason.VideoProfileNotSupported, "Remux", "HLS.mp4")]
-        [InlineData("SafariNext", "mp4-dvh1.05-eac3-15200k", PlayMethod.DirectPlay)]
+        [InlineData("SafariNext", "mp4-dvh1.05-eac3-15200k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")]
         [InlineData("SafariNext", "mkv-dvhe.05-eac3-28000k", PlayMethod.Transcode, TranscodeReason.ContainerNotSupported | TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")]
         [InlineData("SafariNext", "mkv-dvhe.08-eac3-15200k", PlayMethod.Transcode, TranscodeReason.ContainerNotSupported | TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")]
         [InlineData("SafariNext", "mp4-dvhe.08-eac3-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")]
@@ -111,7 +111,7 @@ namespace Jellyfin.Model.Tests
         [InlineData("Chrome-NoHLS", "mp4-h264-aac-vtt-2600k", PlayMethod.DirectPlay)] // #6450
         [InlineData("Chrome-NoHLS", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioCodecNotSupported, "DirectStream", "http")] // #6450
         [InlineData("Chrome-NoHLS", "mp4-h264-ac3-aacDef-srt-2600k", PlayMethod.Transcode, TranscodeReason.SecondaryAudioNotSupported, "Remux", "http")] // #6450
-        [InlineData("Chrome-NoHLS", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioIsExternal, "Remux", "http")] // #6450
+        [InlineData("Chrome-NoHLS", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioIsExternal, "DirectStream", "http")] // #6450
         [InlineData("Chrome-NoHLS", "mp4-h264-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioCodecNotSupported, "DirectStream", "http")] // #6450
         [InlineData("Chrome-NoHLS", "mp4-hevc-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecNotSupported, "Transcode", "http")]
         [InlineData("Chrome-NoHLS", "mp4-hevc-ac3-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecNotSupported | TranscodeReason.AudioCodecNotSupported, "Transcode", "http")]
@@ -226,10 +226,10 @@ namespace Jellyfin.Model.Tests
         [InlineData("Firefox", "mkv-vp9-vorbis-vtt-2600k", PlayMethod.DirectPlay, (TranscodeReason)0, "Remux")] // #6450
         // Safari
         [InlineData("SafariNext", "mp4-h264-aac-vtt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aacDef-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.DirectPlay)] // #6450
-        [InlineData("SafariNext", "mp4-h264-ac3-srt-2600k", PlayMethod.DirectPlay)] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aac-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aacDef-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-aacExt-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
+        [InlineData("SafariNext", "mp4-h264-ac3-srt-2600k", PlayMethod.Transcode, TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported, "Remux", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-ac3-aac-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
         [InlineData("SafariNext", "mp4-hevc-ac3-aacExt-srt-15200k", PlayMethod.Transcode, TranscodeReason.VideoCodecTagNotSupported | TranscodeReason.AudioChannelsNotSupported, "DirectStream", "HLS.mp4")] // #6450
@@ -471,17 +471,12 @@ namespace Jellyfin.Model.Tests
                             {
                                 Assert.DoesNotContain(targetAudioStream.Codec, streamInfo.AudioCodecs);
                             }
-                            else
-                            {
-                                Assert.Equal(targetAudioStream.Channels, streamInfo.TranscodingMaxAudioChannels);
-                            }
                         }
                     }
                     else if (transcodeMode.Equals("Remux", StringComparison.Ordinal))
                     {
                         // Check expected audio codecs (1)
                         Assert.Contains(targetAudioStream?.Codec, streamInfo.AudioCodecs);
-                        Assert.Single(streamInfo.AudioCodecs);
                     }
 
                     // Video details

@@ -726,7 +726,7 @@ namespace MediaBrowser.Model.Dlna
                         }
 
                         SetStreamInfoOptionsFromDirectPlayProfile(options, item, playlistItem, directPlayProfile);
-                        BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, candidateAudioStreams, directPlayProfile?.Container, directPlayProfile?.VideoCodec, directPlayProfile?.AudioCodec);
+                        BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, directPlayProfile?.Container, directPlayProfile?.VideoCodec, directPlayProfile?.AudioCodec);
                     }
 
                     if (subtitleStream is not null)
@@ -760,7 +760,7 @@ namespace MediaBrowser.Model.Dlna
                 {
                     SetStreamInfoOptionsFromTranscodingProfile(item, playlistItem, transcodingProfile);
 
-                    BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, candidateAudioStreams, transcodingProfile.Container, transcodingProfile.VideoCodec, transcodingProfile.AudioCodec);
+                    BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, transcodingProfile.Container, transcodingProfile.VideoCodec, transcodingProfile.AudioCodec);
 
                     playlistItem.PlayMethod = PlayMethod.Transcode;
 
@@ -902,7 +902,6 @@ namespace MediaBrowser.Model.Dlna
             MediaSourceInfo item,
             MediaStream? videoStream,
             MediaStream? audioStream,
-            IEnumerable<MediaStream> candidateAudioStreams,
             string? container,
             string? videoCodec,
             string? audioCodec)
@@ -964,29 +963,18 @@ namespace MediaBrowser.Model.Dlna
                 }
             }
 
-            var audioStreamWithSupportedCodec = candidateAudioStreams.Where(stream => ContainerHelper.ContainsContainer(audioCodecs, false, stream.Codec)).FirstOrDefault();
-
-            var directAudioStream = audioStreamWithSupportedCodec?.Channels is not null && audioStreamWithSupportedCodec.Channels.Value <= (playlistItem.TranscodingMaxAudioChannels ?? int.MaxValue) ? audioStreamWithSupportedCodec : null;
-
-            var channelsExceedsLimit = audioStreamWithSupportedCodec is not null && directAudioStream is null;
-
-            if (channelsExceedsLimit && playlistItem.TargetAudioStream is not null)
-            {
-                playlistItem.TranscodeReasons |= TranscodeReason.AudioChannelsNotSupported;
-                playlistItem.TargetAudioStream.Channels = playlistItem.TranscodingMaxAudioChannels;
-            }
-
             playlistItem.AudioCodecs = audioCodecs;
-            if (directAudioStream is not null)
-            {
-                audioStream = directAudioStream;
-                playlistItem.AudioStreamIndex = audioStream.Index;
-                audioCodecs = [audioStream.Codec];
-                playlistItem.AudioCodecs = audioCodecs;
 
-                // Copy matching audio codec options
+            if (audioStream is not null)
+            {
+                // Copy audio codec options as a starting point
+
                 playlistItem.AudioSampleRate = audioStream.SampleRate;
-                playlistItem.SetOption(qualifier, "audiochannels", audioStream.Channels?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+
+                if (audioStream.Channels.HasValue)
+                {
+                    playlistItem.SetOption(audioStream.Codec, "audiochannels", audioStream.Channels.Value.ToString(CultureInfo.InvariantCulture));
+                }
 
                 if (!string.IsNullOrEmpty(audioStream.Profile))
                 {
@@ -1040,7 +1028,7 @@ namespace MediaBrowser.Model.Dlna
             }
 
             // Honor requested max channels
-            playlistItem.GlobalMaxAudioChannels = channelsExceedsLimit ? playlistItem.TranscodingMaxAudioChannels : options.MaxAudioChannels;
+            playlistItem.GlobalMaxAudioChannels = options.MaxAudioChannels;
 
             int audioBitrate = GetAudioBitrate(options.GetMaxBitrate(true) ?? 0, playlistItem.TargetAudioCodec, audioStream, playlistItem);
             playlistItem.AudioBitrate = Math.Min(playlistItem.AudioBitrate ?? audioBitrate, audioBitrate);
