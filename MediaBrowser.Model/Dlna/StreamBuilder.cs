@@ -1070,6 +1070,13 @@ namespace MediaBrowser.Model.Dlna
             MediaStream? audioStream,
             StreamInfo playlistItem)
         {
+            var mediaSource = playlistItem.MediaSource;
+
+            if (mediaSource is null)
+            {
+                throw new ArgumentNullException("MediaSource can't be empty.", nameof(mediaSource));
+            }
+
             if (!(item.SupportsTranscoding || item.SupportsDirectStream))
             {
                 return (null, null);
@@ -1084,17 +1091,7 @@ namespace MediaBrowser.Model.Dlna
             }
 
             var videoCodec = videoStream?.Codec;
-            float videoFramerate = videoStream?.ReferenceFrameRate ?? 0;
-            TransportStreamTimestamp? timestamp = videoStream is null ? TransportStreamTimestamp.None : item.Timestamp;
-            int? numAudioStreams = item.GetStreamCount(MediaStreamType.Audio);
-            int? numVideoStreams = item.GetStreamCount(MediaStreamType.Video);
-
             var audioCodec = audioStream?.Codec;
-            var audioProfile = audioStream?.Profile;
-            var audioChannels = audioStream?.Channels;
-            var audioBitrate = audioStream?.BitRate;
-            var audioSampleRate = audioStream?.SampleRate;
-            var audioBitDepth = audioStream?.BitDepth;
 
             var analyzedProfiles = transcodingProfiles
                 .Select(transcodingProfile =>
@@ -1103,38 +1100,20 @@ namespace MediaBrowser.Model.Dlna
 
                     var container = transcodingProfile.Container;
 
-                    if (options.AllowVideoStreamCopy)
+                    if (videoStream is not null
+                        && options.AllowVideoStreamCopy
+                        && ContainerHelper.ContainsContainer(transcodingProfile.VideoCodec, videoCodec))
                     {
-                        if (ContainerHelper.ContainsContainer(transcodingProfile.VideoCodec, videoCodec))
-                        {
-                            var appliedVideoConditions = options.Profile.CodecProfiles
-                                .Where(i => i.Type == CodecType.Video &&
-                                    i.ContainsAnyCodec(videoCodec, container) &&
-                                    i.ApplyConditions.All(applyCondition => ConditionProcessor.IsVideoConditionSatisfied(applyCondition, videoStream?.Width, videoStream?.Height, videoStream?.BitDepth, videoStream?.BitRate, videoStream?.Profile, videoStream?.VideoRangeType, videoStream?.Level, videoFramerate, videoStream?.PacketLength, timestamp, videoStream?.IsAnamorphic, videoStream?.IsInterlaced, videoStream?.RefFrames, numVideoStreams, numAudioStreams, videoStream?.CodecTag, videoStream?.IsAVC)))
-                                .Select(i =>
-                                    i.Conditions.All(condition => ConditionProcessor.IsVideoConditionSatisfied(condition, videoStream?.Width, videoStream?.Height, videoStream?.BitDepth, videoStream?.BitRate, videoStream?.Profile, videoStream?.VideoRangeType, videoStream?.Level, videoFramerate, videoStream?.PacketLength, timestamp, videoStream?.IsAnamorphic, videoStream?.IsInterlaced, videoStream?.RefFrames, numVideoStreams, numAudioStreams, videoStream?.CodecTag, videoStream?.IsAVC)));
-
-                            // An empty appliedVideoConditions means that the codec has no conditions for the current video stream
-                            var conditionsSatisfied = appliedVideoConditions.All(satisfied => satisfied);
-                            rank.Video = conditionsSatisfied ? 1 : 2;
-                        }
+                        var failures = GetCompatibilityVideoCodec(mediaSource, container, videoStream, options.Profile);
+                        rank.Video = failures == 0 ? 1 : 2;
                     }
 
-                    if (options.AllowAudioStreamCopy)
+                    if (audioStream is not null
+                        && options.AllowAudioStreamCopy
+                        && ContainerHelper.ContainsContainer(transcodingProfile.AudioCodec, audioCodec))
                     {
-                        if (ContainerHelper.ContainsContainer(transcodingProfile.AudioCodec, audioCodec))
-                        {
-                            var appliedVideoConditions = options.Profile.CodecProfiles
-                                .Where(i => i.Type == CodecType.VideoAudio &&
-                                    i.ContainsAnyCodec(audioCodec, container) &&
-                                    i.ApplyConditions.All(applyCondition => ConditionProcessor.IsVideoAudioConditionSatisfied(applyCondition, audioChannels, audioBitrate, audioSampleRate, audioBitDepth, audioProfile, false)))
-                                .Select(i =>
-                                    i.Conditions.All(condition => ConditionProcessor.IsVideoAudioConditionSatisfied(condition, audioChannels, audioBitrate, audioSampleRate, audioBitDepth, audioProfile, false)));
-
-                            // An empty appliedVideoConditions means that the codec has no conditions for the current audio stream
-                            var conditionsSatisfied = appliedVideoConditions.All(satisfied => satisfied);
-                            rank.Audio = conditionsSatisfied ? 1 : 2;
-                        }
+                        var failures = GetCompatibilityAudioCodec(mediaSource, container, audioStream, options.Profile, true);
+                        rank.Audio = failures == 0 ? 1 : 2;
                     }
 
                     PlayMethod playMethod = PlayMethod.Transcode;
