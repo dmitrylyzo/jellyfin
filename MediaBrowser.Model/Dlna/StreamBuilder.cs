@@ -770,7 +770,7 @@ namespace MediaBrowser.Model.Dlna
                 {
                     SetStreamInfoOptionsFromTranscodingProfile(item, playlistItem, transcodingProfile);
 
-                    BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, candidateAudioStreams, transcodingProfile.Container, transcodingProfile.VideoCodec, transcodingProfile.AudioCodec);
+                    BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, candidateAudioStreams, transcodingProfile.Container, transcodingProfile.VideoCodec, transcodingProfile.AudioCodec, transcodingProfile);
 
                     playlistItem.PlayMethod = PlayMethod.Transcode;
 
@@ -856,7 +856,8 @@ namespace MediaBrowser.Model.Dlna
 
                         foreach (var transcodingAudioCodec in transcodingAudioCodecs)
                         {
-                            var failures = GetCompatibilityAudioCodec(options, mediaSource, container, audioStream, transcodingAudioCodec, true, false);
+                            var failures = GetCompatibilityAudioCodec(transcodingProfile, audioStream)
+                                | GetCompatibilityAudioCodec(options, mediaSource, container, audioStream, transcodingAudioCodec, true, false);
 
                             var rankAudio = 3;
 
@@ -899,7 +900,8 @@ namespace MediaBrowser.Model.Dlna
             IEnumerable<MediaStream> candidateAudioStreams,
             string? container,
             string? videoCodec,
-            string? audioCodec)
+            string? audioCodec,
+            TranscodingProfile? transcodingProfile = null)
         {
             // Prefer matching video codecs
             var videoCodecs = ContainerHelper.Split(videoCodec).ToList();
@@ -958,25 +960,34 @@ namespace MediaBrowser.Model.Dlna
                 }
             }
 
-            var audioStreamWithSupportedCodec = candidateAudioStreams.Where(stream => ContainerHelper.ContainsContainer(audioCodecs, false, stream.Codec)).FirstOrDefault();
+            MediaStream? directAudioStream = null;
 
-            var channelsExceedsLimit = audioStreamWithSupportedCodec is not null && audioStreamWithSupportedCodec.Channels > (playlistItem.TranscodingMaxAudioChannels ?? int.MaxValue);
-
-            var directAudioFailures = audioStreamWithSupportedCodec is null ? default : GetCompatibilityAudioCodec(options, item, container ?? string.Empty, audioStreamWithSupportedCodec, null, true, false);
-
-            playlistItem.TranscodeReasons |= directAudioFailures;
-
-            var directAudioStreamSatisfied = audioStreamWithSupportedCodec is not null && !channelsExceedsLimit
-                && directAudioFailures == 0;
-
-            directAudioStreamSatisfied = directAudioStreamSatisfied && !playlistItem.TranscodeReasons.HasFlag(TranscodeReason.ContainerBitrateExceedsLimit);
-
-            var directAudioStream = directAudioStreamSatisfied ? audioStreamWithSupportedCodec : null;
-
-            if (channelsExceedsLimit && playlistItem.TargetAudioStream is not null)
+            if (!playlistItem.TranscodeReasons.HasFlag(TranscodeReason.ContainerBitrateExceedsLimit))
             {
-                playlistItem.TranscodeReasons |= TranscodeReason.AudioChannelsNotSupported;
-                playlistItem.TargetAudioStream.Channels = playlistItem.TranscodingMaxAudioChannels;
+                var supportedAudioStreams = candidateAudioStreams.Where(stream => ContainerHelper.ContainsContainer(audioCodecs, false, stream.Codec));
+
+                foreach (var stream in supportedAudioStreams)
+                {
+                    var directAudioFailures = GetCompatibilityAudioCodec(options, item, container ?? string.Empty, stream, null, true, false);
+
+                    if (stream.Channels > (playlistItem.TranscodingMaxAudioChannels ?? int.MaxValue))
+                    {
+                        directAudioFailures |= TranscodeReason.AudioChannelsNotSupported;
+                    }
+
+                    if (transcodingProfile is not null)
+                    {
+                        directAudioFailures |= GetCompatibilityAudioCodec(transcodingProfile, stream);
+                    }
+
+                    if (directAudioFailures == 0)
+                    {
+                        directAudioStream = stream;
+                        break;
+                    }
+
+                    playlistItem.TranscodeReasons |= directAudioFailures;
+                }
             }
 
             playlistItem.AudioCodecs = audioCodecs;
@@ -1043,7 +1054,7 @@ namespace MediaBrowser.Model.Dlna
             }
 
             // Honor requested max channels
-            playlistItem.GlobalMaxAudioChannels = channelsExceedsLimit ? playlistItem.TranscodingMaxAudioChannels : options.MaxAudioChannels;
+            playlistItem.GlobalMaxAudioChannels = transcodingProfile is null || playlistItem.TranscodingMaxAudioChannels is null ? options.MaxAudioChannels : playlistItem.TranscodingMaxAudioChannels;
 
             int audioBitrate = GetAudioBitrate(options.GetMaxBitrate(true) ?? 0, playlistItem.TargetAudioCodec, audioStream, playlistItem);
             playlistItem.AudioBitrate = Math.Min(playlistItem.AudioBitrate ?? audioBitrate, audioBitrate);
@@ -2362,6 +2373,26 @@ namespace MediaBrowser.Model.Dlna
             if (audioStream.IsExternal)
             {
                 failures |= TranscodeReason.AudioIsExternal;
+            }
+
+            return failures;
+        }
+
+        /// <summary>
+        /// Check the compatibility of the audio codec with the transcoding profile.
+        /// </summary>
+        /// <param name="transcodingProfile">Transcoding profile.</param>
+        /// <param name="audioStream">Audio stream.</param>
+        /// <returns>Transcode reasons if the audio stream is not fully compatible with the transcoding profile.</returns>
+        private TranscodeReason GetCompatibilityAudioCodec(TranscodingProfile transcodingProfile, MediaStream audioStream)
+        {
+            TranscodeReason failures = default;
+
+            if (int.TryParse(transcodingProfile.MaxAudioChannels, CultureInfo.InvariantCulture, out int transcodingMaxAudioChannels)
+                && audioStream.Channels.HasValue
+                && audioStream.Channels.Value > transcodingMaxAudioChannels)
+            {
+                failures |= TranscodeReason.AudioChannelsNotSupported;
             }
 
             return failures;
