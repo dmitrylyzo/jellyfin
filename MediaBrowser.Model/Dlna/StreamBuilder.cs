@@ -2182,11 +2182,8 @@ namespace MediaBrowser.Model.Dlna
             return index;
         }
 
-        private TranscodeReason GetCompatibilityContainer(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream? videoStream)
+        private IEnumerable<ProfileCondition> CheckVideoConditions(ProfileCondition[] conditions, MediaSourceInfo mediaSource, MediaStream? videoStream)
         {
-            var profile = options.Profile;
-
-            // Video
             int? width = videoStream?.Width;
             int? height = videoStream?.Height;
             int? bitDepth = videoStream?.BitDepth;
@@ -2207,8 +2204,12 @@ namespace MediaBrowser.Model.Dlna
             int? numAudioStreams = mediaSource.GetStreamCount(MediaStreamType.Audio);
             int? numVideoStreams = mediaSource.GetStreamCount(MediaStreamType.Video);
 
-            var checkVideoConditions = (ProfileCondition[] conditions) =>
-                conditions.Where(applyCondition => !ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc));
+            return conditions.Where(applyCondition => !ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc));
+        }
+
+        private TranscodeReason GetCompatibilityContainer(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream? videoStream)
+        {
+            var profile = options.Profile;
 
             var failures = AggregateFailureConditions(
                 mediaSource,
@@ -2216,7 +2217,7 @@ namespace MediaBrowser.Model.Dlna
                 "VideoCodecProfile",
                 profile.ContainerProfiles
                     .Where(containerProfile => containerProfile.Type == DlnaProfileType.Video && containerProfile.ContainsContainer(container))
-                    .SelectMany(containerProfile => checkVideoConditions(containerProfile.Conditions)));
+                    .SelectMany(containerProfile => CheckVideoConditions(containerProfile.Conditions, mediaSource, videoStream)));
 
             return failures;
         }
@@ -2226,28 +2227,6 @@ namespace MediaBrowser.Model.Dlna
             var profile = options.Profile;
 
             string videoCodec = videoStream.Codec;
-            int? width = videoStream.Width;
-            int? height = videoStream.Height;
-            int? bitDepth = videoStream.BitDepth;
-            int? videoBitrate = videoStream.BitRate;
-            double? videoLevel = videoStream.Level;
-            string? videoProfile = videoStream.Profile;
-            VideoRangeType? videoRangeType = videoStream.VideoRangeType;
-            float videoFramerate = videoStream.ReferenceFrameRate ?? 0;
-            bool? isAnamorphic = videoStream.IsAnamorphic;
-            bool? isInterlaced = videoStream.IsInterlaced;
-            string? videoCodecTag = videoStream.CodecTag;
-            bool? isAvc = videoStream.IsAVC;
-
-            TransportStreamTimestamp? timestamp = mediaSource.Timestamp;
-            int? packetLength = videoStream.PacketLength;
-            int? refFrames = videoStream.RefFrames;
-
-            int? numAudioStreams = mediaSource.GetStreamCount(MediaStreamType.Audio);
-            int? numVideoStreams = mediaSource.GetStreamCount(MediaStreamType.Video);
-
-            var checkVideoConditions = (ProfileCondition[] conditions) =>
-                conditions.Where(applyCondition => !ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc));
 
             var failures = AggregateFailureConditions(
                 mediaSource,
@@ -2256,8 +2235,8 @@ namespace MediaBrowser.Model.Dlna
                 profile.CodecProfiles
                     .Where(codecProfile => codecProfile.Type == CodecType.Video &&
                         codecProfile.ContainsAnyCodec(videoCodec, container) &&
-                        !checkVideoConditions(codecProfile.ApplyConditions).Any())
-                    .SelectMany(codecProfile => checkVideoConditions(codecProfile.Conditions)));
+                        !CheckVideoConditions(codecProfile.ApplyConditions, mediaSource, videoStream).Any())
+                    .SelectMany(codecProfile => CheckVideoConditions(codecProfile.Conditions, mediaSource, videoStream)));
 
             return failures;
         }
