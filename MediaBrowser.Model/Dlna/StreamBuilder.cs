@@ -958,24 +958,34 @@ namespace MediaBrowser.Model.Dlna
                 }
             }
 
-            var audioStreamWithSupportedCodec = candidateAudioStreams.Where(stream => ContainerHelper.ContainsContainer(audioCodecs, false, stream.Codec)).FirstOrDefault();
+            MediaStream? directAudioStream = null;
 
-            var channelsExceedsLimit = audioStreamWithSupportedCodec is not null && audioStreamWithSupportedCodec.Channels > (playlistItem.TranscodingMaxAudioChannels ?? int.MaxValue);
-
-            var directAudioFailures = audioStreamWithSupportedCodec is null ? default : GetCompatibilityAudioCodec(options, item, container ?? string.Empty, audioStreamWithSupportedCodec, null, true, false);
-
-            playlistItem.TranscodeReasons |= directAudioFailures;
-
-            var directAudioStreamSatisfied = audioStreamWithSupportedCodec is not null && !channelsExceedsLimit
-                && directAudioFailures == 0;
-
-            directAudioStreamSatisfied = directAudioStreamSatisfied && !playlistItem.TranscodeReasons.HasFlag(TranscodeReason.ContainerBitrateExceedsLimit);
-
-            var directAudioStream = directAudioStreamSatisfied ? audioStreamWithSupportedCodec : null;
-
-            if (channelsExceedsLimit && playlistItem.TargetAudioStream is not null)
+            if (!playlistItem.TranscodeReasons.HasFlag(TranscodeReason.ContainerBitrateExceedsLimit))
             {
-                playlistItem.TranscodeReasons |= TranscodeReason.AudioChannelsNotSupported;
+                var supportedAudioStreams = candidateAudioStreams.Where(stream => ContainerHelper.ContainsContainer(audioCodecs, false, stream.Codec));
+
+                foreach (var stream in supportedAudioStreams)
+                {
+                    var directAudioFailures = GetCompatibilityAudioCodec(options, item, container ?? string.Empty, stream, null, true, false);
+
+                    if (stream.Channels > (playlistItem.TranscodingMaxAudioChannels ?? int.MaxValue))
+                    {
+                        directAudioFailures |= TranscodeReason.AudioChannelsNotSupported;
+                    }
+
+                    if (directAudioFailures == 0)
+                    {
+                        directAudioStream = stream;
+                        break;
+                    }
+
+                    playlistItem.TranscodeReasons |= directAudioFailures;
+                }
+            }
+
+            if (playlistItem.TargetAudioStream is not null
+                && playlistItem.TranscodeReasons.HasFlag(TranscodeReason.AudioChannelsNotSupported))
+            {
                 playlistItem.TargetAudioStream.Channels = playlistItem.TranscodingMaxAudioChannels;
             }
 
@@ -1043,7 +1053,7 @@ namespace MediaBrowser.Model.Dlna
             }
 
             // Honor requested max channels
-            playlistItem.GlobalMaxAudioChannels = channelsExceedsLimit ? playlistItem.TranscodingMaxAudioChannels : options.MaxAudioChannels;
+            playlistItem.GlobalMaxAudioChannels = playlistItem.TranscodingMaxAudioChannels ?? options.MaxAudioChannels;
 
             int audioBitrate = GetAudioBitrate(options.GetMaxBitrate(true) ?? 0, playlistItem.TargetAudioCodec, audioStream, playlistItem);
             playlistItem.AudioBitrate = Math.Min(playlistItem.AudioBitrate ?? audioBitrate, audioBitrate);
