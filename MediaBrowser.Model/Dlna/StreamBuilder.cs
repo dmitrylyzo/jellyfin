@@ -2393,8 +2393,9 @@ namespace MediaBrowser.Model.Dlna
         /// <param name="transcodingAudioCodec">Override audio codec.</param>
         /// <param name="isVideo">The media source is video.</param>
         /// <param name="isSecondaryAudio">The audio stream is secondary.</param>
+        /// <param name="isDefaultTrack">The audio stream is a default track.</param>
         /// <returns>Transcode reasons if the audio stream is not fully compatible.</returns>
-        private TranscodeReason GetCompatibilityAudioCodec(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream audioStream, string? transcodingAudioCodec, bool isVideo, bool isSecondaryAudio)
+        private TranscodeReason GetCompatibilityAudioCodec(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream audioStream, string? transcodingAudioCodec, bool isVideo, bool isSecondaryAudio, bool isDefaultTrack)
         {
             var profile = options.Profile;
 
@@ -2404,7 +2405,6 @@ namespace MediaBrowser.Model.Dlna
             var audioBitrate = audioStream.BitRate;
             var audioSampleRate = audioStream.SampleRate;
             var audioBitDepth = audioStream.BitDepth;
-            bool isDefaultTrack = audioStream.IsDefault;
 
             var audioFailureConditions = isVideo
                 ? GetProfileConditionsForVideoAudio(profile.CodecProfiles, container, audioCodec, audioChannels, audioBitrate, audioSampleRate, audioBitDepth, audioProfile, isSecondaryAudio, isDefaultTrack)
@@ -2424,10 +2424,11 @@ namespace MediaBrowser.Model.Dlna
         /// <param name="audioStream">Audio stream.</param>
         /// <param name="isVideo">The media source is video.</param>
         /// <param name="isSecondaryAudio">The audio stream is secondary.</param>
+        /// <param name="isDefaultTrack">The audio stream is a default track.</param>
         /// <returns>Transcode reasons if the audio stream is not fully compatible for direct playback.</returns>
-        private TranscodeReason GetCompatibilityAudioCodecDirect(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream audioStream, bool isVideo, bool isSecondaryAudio)
+        private TranscodeReason GetCompatibilityAudioCodecDirect(MediaOptions options, MediaSourceInfo mediaSource, string container, MediaStream audioStream, bool isVideo, bool isSecondaryAudio, bool isDefaultTrack)
         {
-            var failures = GetCompatibilityAudioCodec(options, mediaSource, container, audioStream, null, isVideo, isSecondaryAudio);
+            var failures = GetCompatibilityAudioCodec(options, mediaSource, container, audioStream, null, isVideo, isSecondaryAudio, isDefaultTrack);
 
             if (audioStream.IsExternal)
             {
@@ -2646,7 +2647,7 @@ namespace MediaBrowser.Model.Dlna
 
             if (audioSupported)
             {
-                failures |= GetCompatibilityAudioCodecDirect(options, mediaSource, container, audioStream, isVideo, isSecondaryAudio);
+                failures |= GetCompatibilityAudioCodecDirect(options, mediaSource, container, audioStream, isVideo, isSecondaryAudio, audioStream.IsDefault);
             }
             else
             {
