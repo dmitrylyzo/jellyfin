@@ -2508,6 +2508,7 @@ namespace MediaBrowser.Model.Dlna
 
             bool containerSupported = false;
             bool videoSupported = false;
+            bool videoContainerSupported = false;
 
             foreach (var directPlayProfile in profile.DirectPlayProfiles)
             {
@@ -2515,7 +2516,7 @@ namespace MediaBrowser.Model.Dlna
                 {
                     bool profileSupportsContainer = directPlayProfile.SupportsContainer(container);
 
-                    if (!videoSupported && profileSupportsContainer)
+                    if (profileSupportsContainer)
                     {
                         containerSupported = true;
                     }
@@ -2523,10 +2524,10 @@ namespace MediaBrowser.Model.Dlna
                     if (directPlayProfile.SupportsVideoCodec(videoCodec))
                     {
                         videoSupported = true;
-                        containerSupported = profileSupportsContainer;
 
-                        if (containerSupported)
+                        if (profileSupportsContainer)
                         {
+                            videoContainerSupported = true;
                             break;
                         }
                     }
@@ -2535,18 +2536,23 @@ namespace MediaBrowser.Model.Dlna
 
             TranscodeReason failures = default;
 
-            if (!containerSupported)
-            {
-                failures |= TranscodeReason.ContainerNotSupported;
-            }
-
             if (videoSupported)
             {
                 failures |= GetCompatibilityVideoCodec(options, mediaSource, container, videoStream);
+
+                if (!videoContainerSupported)
+                {
+                    failures |= TranscodeReason.ContainerNotSupported;
+                }
             }
             else
             {
                 failures |= TranscodeReason.VideoCodecNotSupported;
+
+                if (!containerSupported)
+                {
+                    failures |= TranscodeReason.ContainerNotSupported;
+                }
             }
 
             return failures;
@@ -2569,6 +2575,7 @@ namespace MediaBrowser.Model.Dlna
 
             bool containerSupported = false;
             bool audioSupported = false;
+            bool audioContainerSupported = false;
 
             foreach (var directPlayProfile in profile.DirectPlayProfiles)
             {
@@ -2576,7 +2583,7 @@ namespace MediaBrowser.Model.Dlna
                 {
                     bool profileSupportsContainer = directPlayProfile.SupportsContainer(container);
 
-                    if (!audioSupported && profileSupportsContainer)
+                    if (profileSupportsContainer)
                     {
                         containerSupported = true;
                     }
@@ -2584,10 +2591,10 @@ namespace MediaBrowser.Model.Dlna
                     if (directPlayProfile.SupportsAudioCodec(audioCodec))
                     {
                         audioSupported = true;
-                        containerSupported = profileSupportsContainer;
 
-                        if (containerSupported)
+                        if (profileSupportsContainer)
                         {
+                            audioContainerSupported = true;
                             break;
                         }
                     }
@@ -2596,20 +2603,25 @@ namespace MediaBrowser.Model.Dlna
 
             TranscodeReason failures = default;
 
-            if (!containerSupported)
-            {
-                failures |= TranscodeReason.ContainerNotSupported;
-            }
-
             if (audioSupported)
             {
                 bool isSecondaryAudio = isVideo ? mediaSource.IsSecondaryAudio(audioStream) ?? false : false;
 
                 failures |= GetCompatibilityAudioCodecDirect(options, mediaSource, container, audioStream, isVideo, isSecondaryAudio);
+
+                if (!audioContainerSupported)
+                {
+                    failures |= TranscodeReason.ContainerNotSupported;
+                }
             }
             else
             {
                 failures |= TranscodeReason.AudioCodecNotSupported;
+
+                if (!containerSupported)
+                {
+                    failures |= TranscodeReason.ContainerNotSupported;
+                }
             }
 
             return failures;
